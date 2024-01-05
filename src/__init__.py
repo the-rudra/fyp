@@ -3,6 +3,11 @@ import concurrent.futures
 from concurrent.futures import ThreadPoolExecutor
 from typing import Tuple, Optional
 
+from flask import Flask, jsonify
+from flask_restful import Api, Resource
+from pymongo import MongoClient
+import json
+
 from .jobs import JobType, Location
 # from .scrapers.indeed import IndeedScraper
 # from .scrapers.ziprecruiter import ZipRecruiterScraper
@@ -15,6 +20,8 @@ from .scrapers.exceptions import (
     ZipRecruiterException,
     GlassdoorException,
 )
+from .scrapers.utils import save_jobs_to_mongodb
+from .scrapers.utils import convert_date_to_datetime
 
 SCRAPER_MAPPING = {
     Site.LINKEDIN: LinkedInScraper,
@@ -22,6 +29,11 @@ SCRAPER_MAPPING = {
     # Site.ZIP_RECRUITER: ZipRecruiterScraper,
     # Site.GLASSDOOR: GlassdoorScraper,
 }
+
+from urllib.parse import quote_plus
+# username = quote_plus('<username>')
+password = quote_plus('JpQCDSjLJSogdGWy')
+uri = "mongodb+srv://user1:JpQCDSjLJSogdGWy@cluster0.eiuit1x.mongodb.net/Auth?retryWrites=true&w=majority"
 
 def _map_str_to_site(site_name: str) -> Site:
     return Site[site_name.upper()]
@@ -179,6 +191,10 @@ def scrape_jobs(
         jobs_formatted_df = jobs_df[desired_order]
     else:
         jobs_formatted_df = pd.DataFrame()
-        
+    
+    #add comments
+    jobs_list = jobs_formatted_df.to_dict('records')
+    jobs_data = convert_date_to_datetime(jobs_list)
+    save_jobs_to_mongodb(jobs_data, 'jobs_dev', 'scraped_jobs_dev', uri)
 
     return jobs_formatted_df
